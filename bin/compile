@@ -1,0 +1,126 @@
+#!/bin/bash
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+VENDOR_DIR="$BUILD_DIR/vendor"
+INSTALL_DIR="$VENDOR_DIR/imagemagick-webp"
+
+LIBWEBP_VERSION="${LIBWEBP_VERSION:-1.2.2}"
+IMAGE_MAGICK_VERSION="${IMAGE_MAGICK_VERSION:-7.1.0-26}"
+
+CACHE_FILE="$CACHE_DIR/imagemagick-$IMAGE_MAGICK_VERSION-webp-$LIBWEBP_VERSION.tar.xz"
+
+echo "-----> Install ImageMagick"
+
+if [ ! -f $CACHE_FILE ]; then
+  ##################
+  # NOTE: We assume that the following APT packages are already installed (via heroku-buildpack-apt / Aptfile)
+  # libgif-dev
+  # libwebp-dev
+  ##################
+
+  # install libwebp
+  LIBWEBP_FILE="libwebp-$LIBWEBP_VERSION.tar.gz"
+  LIBWEBP_DIR="libwebp-$LIBWEBP_VERSION"
+  LIBWEBP_URL="https://storage.googleapis.com/downloads.webmproject.org/releases/webp/$LIBWEBP_FILE"
+
+  echo "-----> Downloading libwebp from $LIBWEBP_URL"
+  wget $LIBWEBP_URL -P $BUILD_DIR | indent
+
+  echo "-----> Extracting libwebp from $BUILD_DIR/$LIBWEBP_FILE"
+  if [ ! -f $BUILD_DIR/$LIBWEBP_FILE ]; then
+    echo "Error: Unable to download libwebp" | indent
+    ls $BUILD_DIR | indent
+    exit 1;
+  fi
+  tar xvf $BUILD_DIR/$LIBWEBP_FILE | indent
+  
+  echo "-----> Building libwebp"
+  cd $LIBWEBP_DIR
+  ./configure --prefix=$INSTALL_DIR
+  make && make install
+  cd ..
+  rm -rf $LIBWEBP_DIR
+  rm $BUILD_DIR/$LIBWEBP_FILE
+
+  echo "-----> Verify libwebp build"
+  if [ ! -f $INSTALL_DIR/bin/cwebp ]; then
+    echo "Error: Failed to build libwebp" | indent
+    exit 1;
+  fi
+
+  # install imagemagick
+  IMAGE_MAGICK_FILE="ImageMagick-$IMAGE_MAGICK_VERSION.tar.xz"
+  IMAGE_MAGICK_DIR="ImageMagick-$IMAGE_MAGICK_VERSION"
+  IMAGE_MAGICK_URL="https://www.imagemagick.org/download/releases/$IMAGE_MAGICK_FILE"
+
+  echo "-----> Downloading ImageMagick from $IMAGE_MAGICK_URL"
+  wget $IMAGE_MAGICK_URL -P $BUILD_DIR | indent
+
+  echo "-----> Extracting ImageMagick from $BUILD_DIR/$IMAGE_MAGICK_FILE"
+  if [ ! -f $BUILD_DIR/$IMAGE_MAGICK_FILE ]; then
+    echo "Error: Unable to download ImageMagick" | indent
+    ls $BUILD_DIR | indent
+    exit 1;
+  fi
+  tar xvf $BUILD_DIR/$IMAGE_MAGICK_FILE | indent
+
+  echo "-----> Building ImageMagick"
+  cd $IMAGE_MAGICK_DIR
+  export CPPFLAGS="-I$INSTALL_DIR/include"
+  export LDFLAGS="-L$INSTALL_DIR/lib"
+  ./configure --prefix=$INSTALL_DIR
+  make && make install
+  cd ..
+  rm -rf $IMAGE_MAGICK_DIR
+  rm $BUILD_DIR/$IMAGE_MAGICK_FILE
+
+  echo "-----> Verify ImageMagick build"
+  if [ ! -f $INSTALL_DIR/bin/identify ]; then
+    echo "Error: Failed to build ImageMagick" | indent
+    exit 1;
+  fi
+
+  # cache for future deploys
+  echo "-----> Caching ImageMagick and libwebp installation"
+  cd $VENDOR_DIR
+  REL_INSTALL_DIR="imagemagick-webp"
+  tar czf $REL_INSTALL_DIR.tar.xz $REL_INSTALL_DIR
+
+  if [ ! -d $CACHE_DIR ]; then
+    mkdir -p $CACHE_DIR
+  fi
+
+  mv $REL_INSTALL_DIR.tar.xz $CACHE_FILE
+
+else
+  # cache exists, extract it
+  echo "-----> Extracting ImageMagick $CACHE_FILE => $VENDOR_DIR"
+  mkdir -p $VENDOR_DIR
+  tar xzf $CACHE_FILE -C $VENDOR_DIR
+fi
+
+echo "-----> Writing policy file"
+mkdir -p $INSTALL_DIR/etc/ImageMagick-7
+cat > $INSTALL_DIR/etc/ImageMagick-7/policy.xml <<EOF
+<policymap>
+  <policy domain="coder" rights="none" pattern="EPHEMERAL" />
+  <policy domain="coder" rights="none" pattern="HTTPS" />
+  <policy domain="coder" rights="none" pattern="MVG" />
+  <policy domain="coder" rights="none" pattern="MSL" />
+</policymap>
+EOF
+
+# update PATH and LD_LIBRARY_PATH
+echo "-----> Updating environment variables"
+PROFILE_PATH="$BUILD_DIR/.profile.d/imagemagick-webp.sh"
+ACTUAL_INSTALL_PATH="$HOME/vendor/imagemagick-webp"
+mkdir -p $(dirname $PROFILE_PATH)
+echo "export PATH=$ACTUAL_INSTALL_PATH/bin:\$PATH" >> $PROFILE_PATH
+echo "export LD_LIBRARY_PATH=$ACTUAL_INSTALL_PATH/lib:\$LD_LIBRARY_PATH:/usr/local/lib" >> $PROFILE_PATH
+echo "export MAGICK_CONFIGURE_PATH=$ACTUAL_INSTALL_PATH/etc/ImageMagick-7" >> $PROFILE_PATH
+echo "-----> Done updating environment variables. All set for ImageMagick."
