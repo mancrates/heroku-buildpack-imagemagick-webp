@@ -22,7 +22,11 @@ You can verify that ImageMagick was built with libwebp support by running the fo
 If the output includes `WEBP* rw-   WebP Image Format (libwebp x.x.x)` then you're all set.
 
 ## Changing version
-Go to https://www.imagemagick.org/download/releases and find a version you want (*.tar.xz). Edit the `bin/compile` file and change out the version number. Clear cache, as shown below, and redeploy your app to Heroku.
+* Determine the new version you want to use.
+  * You can visit the ImageMagick project repo to view [Releases](https://www.imagemagick.org/download/releases) and the [ChangeLog](https://github.com/ImageMagick/ImageMagick/blob/main/ChangeLog.md)
+  * You can visit the Webp project repo to view [Releases](https://storage.googleapis.com/downloads.webmproject.org/releases/webp/index.html) and the [ChangeLog](https://chromium.googlesource.com/webm/libwebp/) for each tag
+* Edit the `bin/compile` file and change out the version number.
+* Clear cache, as shown below, and redeploy your app to Heroku.
 
 ## Clear the cache
 Since the installation is cached you might want to clean it out due to config changes. Check out the [heroku-repo](https://github.com/heroku/heroku-repo) plugin.
