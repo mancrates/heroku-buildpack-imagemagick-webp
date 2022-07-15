@@ -23,7 +23,7 @@ If the output includes `WEBP* rw-   WebP Image Format (libwebp x.x.x)` then you'
 
 ## Changing version
 * Determine the new version you want to use.
-  * You can visit the ImageMagick project repo to view [Releases](https://imagemagick.org/download/releases) and the [ChangeLog](https://github.com/ImageMagick/ImageMagick/releases) by using the github compare tags feature.
+  * You can visit the ImageMagick project repo to view [Releases](https://imagemagick.org/archive/releases) and the [ChangeLog](https://github.com/ImageMagick/ImageMagick/releases) by using the github compare tags feature.
   * You can visit the Webp project repo to view [Releases](https://storage.googleapis.com/downloads.webmproject.org/releases/webp/index.html) and the [ChangeLog](https://chromium.googlesource.com/webm/libwebp/) for each tag
 * Edit the `bin/compile` file and change out the version number.
 * Clear cache, as shown below, and redeploy your app to Heroku.
